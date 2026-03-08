@@ -24,6 +24,32 @@ class DatasetBundle:
 def load_dataset(csv_path: str | Path) -> pd.DataFrame:
     """Load Kaggle company bankruptcy dataset from disk."""
     path = Path(csv_path)
+
+    if not path.exists():
+        fallback_candidates = [
+            Path("data/company_bankruptcy.csv"),
+            Path("data/data.csv"),
+            Path("data/Company Bankruptcy Prediction.csv"),
+        ]
+
+        resolved = next((candidate for candidate in fallback_candidates if candidate.exists()), None)
+
+        if resolved is None:
+            csv_files = sorted(Path("data").glob("*.csv")) if Path("data").exists() else []
+            if len(csv_files) == 1:
+                resolved = csv_files[0]
+
+        if resolved is None:
+            raise FileNotFoundError(
+                "Dataset not found. Checked requested path "
+                f"'{path}' and common alternatives inside 'data/'.\n"
+                "Download it from Kaggle and place the CSV as either:\n"
+                "- data/company_bankruptcy.csv\n"
+                "- data/data.csv"
+            )
+
+        path = resolved
+        print(f"[INFO] Dataset not found at requested path. Using: {path}")
     if not path.exists():
         raise FileNotFoundError(
             f"Dataset not found at {path}. Download it from Kaggle and place the CSV there."

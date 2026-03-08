@@ -19,7 +19,7 @@ This project simulates a realistic freelance machine learning engagement for a s
 - Kaggle page: https://www.kaggle.com/datasets/fedesoriano/company-bankruptcy-prediction
 - Expected local path in this project: `data/company_bankruptcy.csv`
 - Target column: `Bankrupt?` (1 = bankrupt/high risk, 0 = non-bankrupt/lower risk)
-- The loader auto-detects common Kaggle layouts: `data/data.csv`, nested paths like `data/<subfolder>/data.csv`, and can extract CSVs from a ZIP found in `data/`.
+- The loader also auto-detects common Kaggle filenames (like `data/data.csv`) if the default file path is missing.
 
 ### Download via Kaggle CLI
 

@@ -3,7 +3,6 @@ from __future__ import annotations
 from dataclasses import dataclass
 from pathlib import Path
 from typing import List, Tuple
-from zipfile import ZipFile
 
 import numpy as np
 import pandas as pd
@@ -22,86 +21,43 @@ class DatasetBundle:
     feature_names: List[str]
 
 
-def _extract_csv_from_zip(zip_path: Path, target_dir: Path) -> Path | None:
-    """Extract first CSV from a ZIP archive into target_dir and return its path."""
-    try:
-        with ZipFile(zip_path) as archive:
-            csv_members = [name for name in archive.namelist() if name.lower().endswith(".csv")]
-            if not csv_members:
-                return None
-
-            member = csv_members[0]
-            archive.extract(member, path=target_dir)
-            return target_dir / member
-    except Exception:
-        return None
-
-
-def _resolve_dataset_path(requested_path: Path) -> Path:
-    """Resolve dataset path from common Kaggle layouts and filenames."""
-    if requested_path.exists():
-        return requested_path
-
-    data_dir = Path("data")
-    fallback_candidates = [
-        data_dir / "company_bankruptcy.csv",
-        data_dir / "data.csv",
-        data_dir / "Company Bankruptcy Prediction.csv",
-        data_dir / "company-bankruptcy-prediction" / "data.csv",
-        data_dir / "Company Bankruptcy Prediction" / "data.csv",
-    ]
-
-    for candidate in fallback_candidates:
-        if candidate.exists():
-            return candidate
-
-    if data_dir.exists():
-        recursive_csv_files = sorted(data_dir.glob("**/*.csv"))
-        if len(recursive_csv_files) == 1:
-            return recursive_csv_files[0]
-
-        if len(recursive_csv_files) > 1:
-            preferred = [p for p in recursive_csv_files if p.name.lower() in {"company_bankruptcy.csv", "data.csv"}]
-            if preferred:
-                return preferred[0]
-
-        zip_files = sorted(data_dir.glob("**/*.zip"))
-        for zip_path in zip_files:
-            extracted = _extract_csv_from_zip(zip_path, data_dir)
-            if extracted is not None and extracted.exists():
-                print(f"[INFO] Extracted dataset from ZIP: {zip_path} -> {extracted}")
-                return extracted
-
-    inspected_data_files = sorted([str(p) for p in data_dir.glob("**/*")]) if data_dir.exists() else []
-    inspected_preview = "\n".join(inspected_data_files[:20])
-    if len(inspected_data_files) > 20:
-        inspected_preview += "\n..."
-
-    raise FileNotFoundError(
-        "Dataset not found. Checked requested path "
-        f"'{requested_path}' and common alternatives inside 'data/'.\n"
-        "Accepted locations include:\n"
-        "- data/company_bankruptcy.csv\n"
-        "- data/data.csv\n"
-        "- data/<subfolder>/data.csv\n\n"
-        "Current files under data/ (first 20):\n"
-        f"{inspected_preview if inspected_preview else '[data directory missing or empty]'}"
-    )
-
-
 def load_dataset(csv_path: str | Path) -> pd.DataFrame:
     """Load Kaggle company bankruptcy dataset from disk."""
-    requested_path = Path(csv_path)
-    resolved_path = _resolve_dataset_path(requested_path)
+    path = Path(csv_path)
 
-    if resolved_path != requested_path:
-        print(f"[INFO] Dataset not found at requested path. Using: {resolved_path}")
+    if not path.exists():
+        fallback_candidates = [
+            Path("data/company_bankruptcy.csv"),
+            Path("data/data.csv"),
+            Path("data/Company Bankruptcy Prediction.csv"),
+        ]
 
-    df = pd.read_csv(resolved_path)
-    if TARGET_COL not in df.columns:
-        raise ValueError(
-            f"Expected target column '{TARGET_COL}' in dataset loaded from '{resolved_path}'."
+        resolved = next((candidate for candidate in fallback_candidates if candidate.exists()), None)
+
+        if resolved is None:
+            csv_files = sorted(Path("data").glob("*.csv")) if Path("data").exists() else []
+            if len(csv_files) == 1:
+                resolved = csv_files[0]
+
+        if resolved is None:
+            raise FileNotFoundError(
+                "Dataset not found. Checked requested path "
+                f"'{path}' and common alternatives inside 'data/'.\n"
+                "Download it from Kaggle and place the CSV as either:\n"
+                "- data/company_bankruptcy.csv\n"
+                "- data/data.csv"
+            )
+
+        path = resolved
+        print(f"[INFO] Dataset not found at requested path. Using: {path}")
+    if not path.exists():
+        raise FileNotFoundError(
+            f"Dataset not found at {path}. Download it from Kaggle and place the CSV there."
         )
+
+    df = pd.read_csv(path)
+    if TARGET_COL not in df.columns:
+        raise ValueError(f"Expected target column '{TARGET_COL}' in dataset.")
     return df
 
 

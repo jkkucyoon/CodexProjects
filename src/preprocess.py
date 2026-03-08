@@ -50,6 +50,10 @@ def load_dataset(csv_path: str | Path) -> pd.DataFrame:
 
         path = resolved
         print(f"[INFO] Dataset not found at requested path. Using: {path}")
+    if not path.exists():
+        raise FileNotFoundError(
+            f"Dataset not found at {path}. Download it from Kaggle and place the CSV there."
+        )
 
     df = pd.read_csv(path)
     if TARGET_COL not in df.columns:
